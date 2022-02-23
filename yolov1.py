@@ -1,18 +1,21 @@
-from keras import Input
-from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Reshape, LeakyReLU
-from keras.models import Model, Sequential
-from keras.applications import VGG16
+from tensorflow.keras import Input
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Reshape, LeakyReLU
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+from tensorflow.keras.applications import VGG16, EfficientNetB1
+from tensorflow.keras.optimizers import Adam
+from data_loader import load_dataset
+from loss import my_loss
 
-def load_data():
-    pass 
+import pandas as pd
 
 class YOLOV1():
 
     def __init__(self) -> None:            
-        self.width = 448
-        self.height = 448
+        self.width = 224
+        self.height = 224
         self.channel = 3
-
+        self.learning_rate = 0.0001
     
     def build_model_vgg16(self):
         base_model = VGG16(include_top=False, weights='imagenet', input_shape=(self.width, self.height, self.channel))
@@ -22,12 +25,28 @@ class YOLOV1():
         model.add(Flatten())
         model.add(Dense(4096))
         model.add(LeakyReLU(alpha=0.1))
-        model.add(Dense(7*7*30))
+        model.add(Dense(7*7*(2*5+3)))
         model.add(LeakyReLU(alpha=0.1))
-        model.add(Reshape((7,7,30)))
+        model.add(Reshape((7,7,2*5+3)))
         base_model.summary()
         model.summary()
-        model.compile(optimizer='adam', loss=self.yolo_loss, metirc=['acc'])
+        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=my_loss, metrics=['acc'])
+        return model
+
+    def build_model_effB1(self):
+        base_model = EfficientNetB1(include_top=False, weights='imagenet', input_shape=(self.width, self.height, self.channel))
+        base_model.trainable = False 
+        model = Sequential()
+        model.add(base_model)
+        model.add(Flatten())
+        model.add(Dense(4096))
+        model.add(LeakyReLU(alpha=0.1))
+        model.add(Dense(7*7*(2*5+3)))
+        model.add(LeakyReLU(alpha=0.1))
+        model.add(Reshape((7,7,2*5+3)))
+        base_model.summary()
+        model.summary()
+        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=my_loss, metrics=['acc'])
         return model
 
     def build_model(self):
@@ -69,7 +88,7 @@ class YOLOV1():
         x = Conv2D(1024, (3,3), padding='same')(x)
         x = LeakyReLU(alpha=0.1)(x)
         x = Conv2D(1024, (3,3), strides=2, padding='same')(x)
-        x = LeakyReLU(alpha=0.1)(x)
+        x = LeakyReLU(alpha=0.1)(x) 
 
         x = Conv2D(1024, (3,3), padding='same')(x)
         x = LeakyReLU(alpha=0.1)(x)
@@ -79,29 +98,57 @@ class YOLOV1():
         x = Flatten()(x)
         x = Dense(4096)(x)
         x = LeakyReLU(alpha=0.1)(x) 
-        x = Dense(7*7*30)(x)
+        x = Dense(7*7*13)(x)
         x = LeakyReLU(alpha=0.1)(x)
 
-        outputs = Reshape((7,7,30))(x)
+        outputs = Reshape((7,7,13))(x)
 
         model = Model(inputs, outputs)
         model.summary()
 
-        model.compile(optimizer='adam', loss=self.yolo_loss)
+        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=my_loss, metrics=['acc'])
 
         return model
 
-         
-
-    def yolo_loss(self, y_pred, y_true):
-        print(y_pred)
-        pass 
-
-    def train(self):
+    def train(self, train_img_dir, valid_img_dir, num_classes, batch_size, epochs, weight_filename):
         # load data
+        x_train, y_train = load_dataset(train_img_dir, (self.width, self.height), num_classes=num_classes)
+        x_valid, y_valid = load_dataset(valid_img_dir, (self.width, self.height), num_classes=num_classes)
+
+        print('x_train.shape: ', x_train.shape)
+        print('y_train.shape: ', y_train.shape)
+
         # train 
-        pass 
+        model = self.build_model_effB1()
+
+         # callback function 
+        callbacks_list = [ModelCheckpoint(filepath=f'./weights/{weight_filename}.h5',
+                        monitor='val_loss',
+                        save_best_only=True,
+                        period=1), 
+                        ReduceLROnPlateau(
+                            monitor='val_loss',
+                            factor=0.1,
+                            patience=3,                            
+                        )]
+                    
+
+        history = model.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=batch_size, epochs=epochs, callbacks=None) 
+
+        # convert the history.history dict to a pandas DataFrame:     
+        hist_df = pd.DataFrame(history.history) 
+
+        # or save to csv: 
+        hist_csv_file = f'./weights/{weight_filename}_history.csv'
+        with open(hist_csv_file, mode='w') as f:
+            hist_df.to_csv(f)
+
+        model.save_weights('dog_cat_duck.h5')
+
 
 if __name__=='__main__':
+    train_img_dir = 'D:\\projects_test\\yolov1\\datasets\\dog_cat_duck\\train'
+    valid_img_dir = 'D:\\projects_test\\yolov1\\datasets\\dog_cat_duck\\valid'
+
     model = YOLOV1()
-    model.build_model_vgg16()
+    model.train(train_img_dir, valid_img_dir, 3, 40, 200, 'dog_cat_duck_weight')
