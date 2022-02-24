@@ -8,6 +8,7 @@ from data_loader import load_dataset
 from loss import my_loss
 
 import pandas as pd
+import os 
 
 class YOLOV1():
 
@@ -116,7 +117,8 @@ class YOLOV1():
         return model
 
     def train(self, train_img_dir, valid_img_dir, num_classes, batch_size, epochs, weight_filename):
-        # load data
+       
+       # load data
         x_train, y_train = load_dataset(train_img_dir, (self.width, self.height), num_classes=num_classes)
         x_valid, y_valid = load_dataset(valid_img_dir, (self.width, self.height), num_classes=num_classes)
 
@@ -139,6 +141,8 @@ class YOLOV1():
                         )]
 
         history = model.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=batch_size, epochs=epochs, callbacks=callbacks_list) 
+        
+        os.makedirs('./weights/', exist_ok=True)
 
         # convert the history.history dict to a pandas DataFrame:     
         hist_df = pd.DataFrame(history.history) 
