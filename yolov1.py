@@ -158,4 +158,4 @@ if __name__=='__main__':
     valid_img_dir = 'D:\\projects_test\\yolov1\\datasets\\dog_cat_duck\\valid'
 
     model = YOLOV1(num_classes=3)
-    model.train(train_img_dir, valid_img_dir, 64,100, '111')
+    model.train(train_img_dir, valid_img_dir, 64,100, 'dog_cat_duck_2')

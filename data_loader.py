@@ -34,7 +34,7 @@ def load_dataset(img_dir, resize_shape=(224,224), yolo_feature_size=7, num_class
     
         # convert labels -> yolo features = ?x7x7x(5xnum_bboxes + num_classes) 
         yolo_feature = np.zeros((yolo_feature_size, yolo_feature_size,length_cls_info), dtype='float32')
-        yolo_feature = convert_bbox_info_to_yolo_feature(yolo_feature, label_list)
+        yolo_feature = convert_bbox_info_to_yolo_feature(yolo_feature_size, yolo_feature, label_list)
 
         x_train[i] = img
         y_train[i] = yolo_feature
@@ -65,12 +65,12 @@ def resize_image(filename, resize_shape=(224,224)):
 #     return img
 
 
-def convert_bbox_info_to_yolo_feature(yolo_feature, label_list):
+def convert_bbox_info_to_yolo_feature(yolo_feature_size, yolo_feature, label_list):
     for label in label_list:
-        i_x = int(label[1] * 6)
-        i_y = int(label[2] * 6)
-        x = label[1] * 6 - i_x
-        y = label[2] * 6- i_y
+        i_x = int(label[1] * yolo_feature_size)
+        i_y = int(label[2] * yolo_feature_size)
+        x = label[1] * yolo_feature_size - i_x
+        y = label[2] * yolo_feature_size- i_y
         w = label[3]
         h = label[4]
         class_id = label[0]
