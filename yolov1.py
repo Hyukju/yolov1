@@ -12,11 +12,15 @@ import os
 
 class YOLOV1():
 
-    def __init__(self) -> None:            
+    def __init__(self, num_classes) -> None:            
         self.width = 448
         self.height = 448
         self.channel = 3
         self.learning_rate = 1e-4
+        self.S = 7
+        self.B = 2
+        self.C = num_classes
+        self.LENGTH_BBOX_INFO = self.B * 5 + self.C
     
     def build_model_vgg16(self):
         base_model = VGG16(include_top=False, weights='imagenet', input_shape=(self.width, self.height, self.channel))
@@ -27,26 +31,9 @@ class YOLOV1():
         model.add(Dense(496))
         model.add(LeakyReLU(alpha=0.1))
         model.add(Dropout(0.5))
-        model.add(Dense(7*7*(2*5+3)))
+        model.add(Dense(self.S*self.S*(self.LENGTH_BBOX_INFO)))
         model.add(LeakyReLU(alpha=0.1))
-        model.add(Reshape((7,7,2*5+3)))
-        base_model.summary()
-        model.summary()
-        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=yolo_loss, metrics=['acc'])
-        return model
-
-    def build_model_effB1(self):
-        base_model = EfficientNetB1(include_top=False, weights='imagenet', input_shape=(self.width, self.height, self.channel))
-        base_model.trainable = False 
-        model = Sequential()
-        model.add(base_model)
-        model.add(Flatten())
-        model.add(Dense(4096))
-        model.add(LeakyReLU(alpha=0.1))
-        model.add(Dropout(0.5))
-        model.add(Dense(7*7*(2*5+3)))
-        model.add(LeakyReLU(alpha=0.1))
-        model.add(Reshape((7,7,2*5+3)))
+        model.add(Reshape((self.S,self.S,self.LENGTH_BBOX_INFO)))
         base_model.summary()
         model.summary()
         model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=yolo_loss, metrics=['acc'])
@@ -107,7 +94,7 @@ class YOLOV1():
         x = LeakyReLU(alpha=0.1)(x)
         x = Dropout(0.5)(x)
 
-        outputs = Conv2D(13, (3,3), padding='same')(x)
+        outputs = Conv2D(self.LENGTH_BBOX_INFO, (3,3), padding='same')(x)
          
         model = Model(inputs, outputs)
         model.summary()
@@ -116,11 +103,11 @@ class YOLOV1():
 
         return model
 
-    def train(self, train_img_dir, valid_img_dir, num_classes, batch_size, epochs, weight_filename):
+    def train(self, train_img_dir, valid_img_dir, batch_size, epochs, weight_filename):
        
        # load data
-        x_train, y_train = load_dataset(train_img_dir, (self.width, self.height), num_classes=num_classes)
-        x_valid, y_valid = load_dataset(valid_img_dir, (self.width, self.height), num_classes=num_classes)
+        x_train, y_train = load_dataset(train_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
+        x_valid, y_valid = load_dataset(valid_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
 
         print('x_train.shape: ', x_train.shape)
         print('y_train.shape: ', y_train.shape)
@@ -154,10 +141,21 @@ class YOLOV1():
 
         model.save_weights( f'./weights/{weight_filename}.h5')
 
+    def test(self, weight_file, test_img_dir, treshold=0.5):
+        test_images, _ = load_dataset(test_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
+        model = self.build_model()
+        model.load_weights(weight_file)
+
+        predict = model.predict(test_images)
+
+        # nms 
+        pass 
+
+
 
 if __name__=='__main__':
     train_img_dir = 'D:\\projects_test\\yolov1\\datasets\\dog_cat_duck\\train'
     valid_img_dir = 'D:\\projects_test\\yolov1\\datasets\\dog_cat_duck\\valid'
 
-    model = YOLOV1()
-    model.train(train_img_dir, valid_img_dir, 3, 64,100, 'dot_cat_duck_weight')
+    model = YOLOV1(num_classes=3)
+    model.train(train_img_dir, valid_img_dir, 64,100, '111')

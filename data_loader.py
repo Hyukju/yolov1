@@ -4,7 +4,7 @@ import numpy as  np
 
 IMG_FILE_EXTS = ['.png', '.jpg', '.tif', '.tiff', '.bmp']
 
-def load_dataset(img_dir, resize_shape=(224,224), num_classes=1, num_bboxes=2):
+def load_dataset(img_dir, resize_shape=(224,224), yolo_feature_size=7, num_classes=1, num_bboxes=2):
     # resize_shape = (width, height)
     # class info : num_bboxes * 5(= p, x, y, wi, h ) + num_classes
     length_cls_info = num_bboxes * 5 + num_classes
@@ -20,7 +20,7 @@ def load_dataset(img_dir, resize_shape=(224,224), num_classes=1, num_bboxes=2):
     total = len(img_file_list)
 
     x_train = np.zeros((total, resize_shape[1], resize_shape[0], 3), dtype='float32')    
-    y_train = np.zeros((total, 7,7, length_cls_info), dtype='float32')    
+    y_train = np.zeros((total, yolo_feature_size, yolo_feature_size, length_cls_info), dtype='float32')    
     # load image files 
     for i, img_file in enumerate(img_file_list):
         # decompose filename and extention
@@ -33,7 +33,7 @@ def load_dataset(img_dir, resize_shape=(224,224), num_classes=1, num_bboxes=2):
         label_list = read_label_file(label_file)
     
         # convert labels -> yolo features = ?x7x7x(5xnum_bboxes + num_classes) 
-        yolo_feature = np.zeros((7,7,length_cls_info), dtype='float32')
+        yolo_feature = np.zeros((yolo_feature_size, yolo_feature_size,length_cls_info), dtype='float32')
         yolo_feature = convert_bbox_info_to_yolo_feature(yolo_feature, label_list)
 
         x_train[i] = img

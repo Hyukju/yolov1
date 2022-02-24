@@ -31,7 +31,7 @@ def iou(box1, box2):
     iou = inter / (box1_area + box2_area - inter)
     return iou
 
-def my_loss(y_true, y_pred):
+def yolo_loss(y_true, y_pred):
 
     gt_bbox = tf.identity(y_true[...,0:4])
     gt_conf = tf.identity(y_true[...,4])
