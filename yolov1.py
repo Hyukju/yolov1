@@ -1,5 +1,5 @@
 from tensorflow.keras import Input
-from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Reshape, LeakyReLU
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Reshape, LeakyReLU, Dropout
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from tensorflow.keras.applications import VGG16, EfficientNetB1
@@ -12,10 +12,10 @@ import pandas as pd
 class YOLOV1():
 
     def __init__(self) -> None:            
-        self.width = 224
-        self.height = 224
+        self.width = 448
+        self.height = 448
         self.channel = 3
-        self.learning_rate = 0.0001
+        self.learning_rate = 1e-4
     
     def build_model_vgg16(self):
         base_model = VGG16(include_top=False, weights='imagenet', input_shape=(self.width, self.height, self.channel))
@@ -23,8 +23,9 @@ class YOLOV1():
         model = Sequential()
         model.add(base_model)
         model.add(Flatten())
-        model.add(Dense(4096))
+        model.add(Dense(496))
         model.add(LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.5))
         model.add(Dense(7*7*(2*5+3)))
         model.add(LeakyReLU(alpha=0.1))
         model.add(Reshape((7,7,2*5+3)))
@@ -41,6 +42,7 @@ class YOLOV1():
         model.add(Flatten())
         model.add(Dense(4096))
         model.add(LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.5))
         model.add(Dense(7*7*(2*5+3)))
         model.add(LeakyReLU(alpha=0.1))
         model.add(Reshape((7,7,2*5+3)))
@@ -94,15 +96,18 @@ class YOLOV1():
         x = LeakyReLU(alpha=0.1)(x)
         x = Conv2D(1024, (3,3), padding='same')(x)
         x = LeakyReLU(alpha=0.1)(x)
+        x = Dropout(0.5)(x)
 
-        x = Flatten()(x)
-        x = Dense(4096)(x)
-        x = LeakyReLU(alpha=0.1)(x) 
-        x = Dense(7*7*13)(x)
+        x = Conv2D(256, (1,1), padding='same')(x)
         x = LeakyReLU(alpha=0.1)(x)
+        x = Dropout(0.5)(x)
 
-        outputs = Reshape((7,7,13))(x)
+        x = Conv2D(30, (3,3), padding='same')(x)
+        x = LeakyReLU(alpha=0.1)(x)
+        x = Dropout(0.5)(x)
 
+        outputs = Conv2D(13, (3,3), padding='same')(x)
+         
         model = Model(inputs, outputs)
         model.summary()
 
@@ -119,21 +124,21 @@ class YOLOV1():
         print('y_train.shape: ', y_train.shape)
 
         # train 
-        model = self.build_model_effB1()
+        model = self.build_model()
 
          # callback function 
         callbacks_list = [ModelCheckpoint(filepath=f'./weights/{weight_filename}.h5',
                         monitor='val_loss',
                         save_best_only=True,
-                        period=1), 
+                        save_weight_only=True,
+                        ), 
                         ReduceLROnPlateau(
                             monitor='val_loss',
                             factor=0.1,
-                            patience=3,                            
+                            patience=30,                            
                         )]
-                    
 
-        history = model.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=batch_size, epochs=epochs, callbacks=None) 
+        history = model.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=batch_size, epochs=epochs, callbacks=callbacks_list) 
 
         # convert the history.history dict to a pandas DataFrame:     
         hist_df = pd.DataFrame(history.history) 
@@ -143,7 +148,7 @@ class YOLOV1():
         with open(hist_csv_file, mode='w') as f:
             hist_df.to_csv(f)
 
-        model.save_weights('dog_cat_duck.h5')
+        model.save_weights( f'./weights/{weight_filename}.h5')
 
 
 if __name__=='__main__':
@@ -151,4 +156,4 @@ if __name__=='__main__':
     valid_img_dir = 'D:\\projects_test\\yolov1\\datasets\\dog_cat_duck\\valid'
 
     model = YOLOV1()
-    model.train(train_img_dir, valid_img_dir, 3, 40, 200, 'dog_cat_duck_weight')
+    model.train(train_img_dir, valid_img_dir, 3, 64,100, 'dot_cat_duck_weight')
