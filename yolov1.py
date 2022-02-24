@@ -5,7 +5,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, Early
 from tensorflow.keras.applications import VGG16, EfficientNetB1
 from tensorflow.keras.optimizers import Adam
 from data_loader import load_dataset
-from loss import my_loss
+from loss import yolo_loss
 
 import pandas as pd
 import os 
@@ -32,7 +32,7 @@ class YOLOV1():
         model.add(Reshape((7,7,2*5+3)))
         base_model.summary()
         model.summary()
-        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=my_loss, metrics=['acc'])
+        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=yolo_loss, metrics=['acc'])
         return model
 
     def build_model_effB1(self):
@@ -49,7 +49,7 @@ class YOLOV1():
         model.add(Reshape((7,7,2*5+3)))
         base_model.summary()
         model.summary()
-        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=my_loss, metrics=['acc'])
+        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=yolo_loss, metrics=['acc'])
         return model
 
     def build_model(self):
@@ -112,7 +112,7 @@ class YOLOV1():
         model = Model(inputs, outputs)
         model.summary()
 
-        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=my_loss, metrics=['acc'])
+        model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=yolo_loss, metrics=['acc'])
 
         return model
 
