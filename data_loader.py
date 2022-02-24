@@ -52,17 +52,17 @@ def read_label_file(label_file):
 
     return bbox_info_list
 
-# def resize_image(filename, resize_shape=(224,224)):
-#     img = cv2.imread(filename).astype('float32') / 255.0
-#     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-#     img = cv2.resize(img, dsize=resize_shape)
-#     return img
-
 def resize_image(filename, resize_shape=(224,224)):
-    img = cv2.imread(filename, 0).astype('float32') / 255.0
-    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    img = cv2.imread(filename).astype('float32') / 255.0
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = cv2.resize(img, dsize=resize_shape)
     return img
+
+# def resize_image(filename, resize_shape=(224,224)):
+#     img = cv2.imread(filename, 0).astype('float32') / 255.0
+#     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+#     img = cv2.resize(img, dsize=resize_shape)
+#     return img
 
 
 def convert_bbox_info_to_yolo_feature(yolo_feature, label_list):
