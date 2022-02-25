@@ -21,6 +21,8 @@ class YOLOV1():
         self.B = 2
         self.C = num_classes
         self.LENGTH_BBOX_INFO = self.B * 5 + self.C
+        # 
+        self.IS_TRAINING = False
     
     def build_model_vgg16(self):
         base_model = VGG16(include_top=False, weights='imagenet', input_shape=(self.width, self.height, self.channel))
@@ -103,43 +105,62 @@ class YOLOV1():
 
         return model
 
-    def train(self, train_img_dir, valid_img_dir, batch_size, epochs, weight_filename):
-       
-       # load data
-        x_train, y_train = load_dataset(train_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
-        x_valid, y_valid = load_dataset(valid_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
-
-        print('x_train.shape: ', x_train.shape)
-        print('y_train.shape: ', y_train.shape)
-
-        # train 
-        model = self.build_model()
-
-         # callback function 
-        callbacks_list = [ModelCheckpoint(filepath=f'./weights/{weight_filename}.h5',
-                        monitor='val_loss',
-                        save_best_only=True,
-                        save_weight_only=True,
-                        ), 
-                        ReduceLROnPlateau(
-                            monitor='val_loss',
-                            factor=0.1,
-                            patience=30,                            
-                        )]
-
-        history = model.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=batch_size, epochs=epochs, callbacks=callbacks_list) 
+    def train(self, train_img_dir, valid_img_dir=None, batch_size=20, epochs=100, weight_filename='yolo_weights'):
         
-        os.makedirs('./weights/', exist_ok=True)
+        if self.IS_TRAINING:
+            self.IS_TRAINING = False
 
-        # convert the history.history dict to a pandas DataFrame:     
-        hist_df = pd.DataFrame(history.history) 
+        try:
+        # load data
+            x_train, y_train = load_dataset(train_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
+            if valid_img_dir == None:
+                validation_data = None:
+            else:
+                x_valid, y_valid = load_dataset(valid_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
+                validation_data = (x_valid, y_valid)
 
-        # or save to csv: 
-        hist_csv_file = f'./weights/{weight_filename}_history.csv'
-        with open(hist_csv_file, mode='w') as f:
-            hist_df.to_csv(f)
 
-        model.save_weights( f'./weights/{weight_filename}.h5')
+            print('x_train.shape: ', x_train.shape)
+            print('y_train.shape: ', y_train.shape)
+
+            # train 
+            model = self.build_model()
+
+            # callback function 
+            callbacks_list = [ModelCheckpoint(filepath=f'./weights/{weight_filename}.h5',
+                            monitor='val_loss',
+                            save_best_only=True,
+                            save_weight_only=True,
+                            ), 
+                            ReduceLROnPlateau(
+                                monitor='val_loss',
+                                factor=0.1,
+                                patience=30,                            
+                            )]
+
+            history = model.fit(x_train, y_train, validation_data=validation_data, batch_size=batch_size, epochs=epochs, callbacks=callbacks_list) 
+            
+            self.IS_TRAINING = True
+            
+        except Exception as e:
+            print(e)
+        except KeyboardInterrupt:
+            pass 
+        finally:
+            if self.IS_TRAINING:                
+                os.makedirs('./weights/', exist_ok=True)
+
+                # convert the history.history dict to a pandas DataFrame:     
+                hist_df = pd.DataFrame(history.history) 
+
+                # or save to csv: 
+                hist_csv_file = f'./weights/{weight_filename}_history.csv'
+                with open(hist_csv_file, mode='w') as f:
+                    hist_df.to_csv(f)
+
+                model.save_weights( f'./weights/{weight_filename}_last.h5')
+
+                self.IS_TRAINING = False
 
     def test(self, weight_file, test_img_dir, treshold=0.5):
         test_images, _ = load_dataset(test_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
