@@ -7,7 +7,6 @@ from tensorflow.keras.applications import VGG16, EfficientNetB1
 from tensorflow.keras.optimizers import Adam
 from data_loader import load_dataset
 from loss import yolo_loss
-from callback import CustomCallback
 import pandas as pd
 import os 
 
