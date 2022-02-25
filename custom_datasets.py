@@ -81,10 +81,10 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Make coustom datasets')
     
     parser.add_argument('--objects', type=str, default='dog,cat,duck', help='text1, text2, text3, ...')
-    parser.add_argument('--image_size', type=int, default=448, help='image size (with = height)')
+    parser.add_argument('--image_size', type=int, default=448, help='image size (width = height)')
     parser.add_argument('--num_images', type=int, default=100, help='number of images created')
     parser.add_argument('--max_objects', type=int, default=5, help='maximum objects in image')
-
+    
     args = parser.parse_args()
     objects = args.objects.split(',')
     image_size = args.image_size
