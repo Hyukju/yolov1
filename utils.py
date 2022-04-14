@@ -64,6 +64,11 @@ def do_nms(bbox_info_list, iou_th):
 def draw_rectangle(img, bbox_info_list):
     out = img.copy()
 
+    if 'float' in str(img.dtype):
+        out = np.clip(out, 0,255)
+        out = (out * 255).astype('uint8') 
+        
+
     rows, cols = out.shape[:2]
     for i, bbox_info in enumerate(bbox_info_list):
         x = bbox_info['x']
@@ -73,7 +78,7 @@ def draw_rectangle(img, bbox_info_list):
         confidence = bbox_info['confidence']
         cl = bbox_info['class']
 
-        box_color = np.array(random_color())/255.0
+        box_color = random_color()
 
         pt1 = (int((x - w/2) * cols), int((y - h/2) * rows))
         pt2 = (int((x + w/2) * cols), int((y + h/2) * rows))

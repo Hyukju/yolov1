@@ -39,7 +39,7 @@ def load_dataset(img_dir, resize_shape=(224,224), yolo_feature_size=7, num_class
         x_train[i] = img
         y_train[i] = yolo_feature
         
-    return x_train, y_train
+    return x_train, y_train, img_file_list
 
 def read_label_file(label_file):
     bbox_info_list = []

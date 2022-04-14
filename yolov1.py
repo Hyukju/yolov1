@@ -1,14 +1,16 @@
-from ast import expr_context
 from tensorflow.keras import Input
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Reshape, LeakyReLU, Dropout
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
-from tensorflow.keras.applications import VGG16, EfficientNetB1
+from tensorflow.keras.applications import VGG16
 from tensorflow.keras.optimizers import Adam
 from data_loader import load_dataset
 from loss import yolo_loss
 import pandas as pd
 import os 
+import utils
+import numpy as np 
+import cv2 
 
 class YOLOV1():
 
@@ -115,11 +117,11 @@ class YOLOV1():
         os.makedirs(save_weight_dir)
 
         #load datasets
-        x_train, y_train = load_dataset(train_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
+        x_train, y_train, _ = load_dataset(train_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
         if valid_img_dir == None:
             validation_data = None
         else:
-            x_valid, y_valid = load_dataset(valid_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
+            x_valid, y_valid, _ = load_dataset(valid_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
             validation_data = (x_valid, y_valid)
 
 
@@ -161,21 +163,45 @@ class YOLOV1():
             hist_df.to_csv(f)
 
 
-    def test(self, weight_file, test_img_dir, treshold=0.5):
-        test_images, _ = load_dataset(test_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
+    def test(self, weight_file, test_img_dir, save_dir, labels=None, treshold=0.5):
+        test_images, _, img_flie_list = load_dataset(test_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
         model = self.build_model()
         model.load_weights(weight_file)
 
-        predict = model.predict(test_images)
+        os.makedirs(save_dir, exist_ok=True)
 
         # nms 
-        pass 
+        for test_image, file_path in zip(test_images, img_flie_list):
+            _, file_name = os.path.split(file_path)
+
+            img = test_image.copy()
+            predict = model.predict(np.expand_dims(img, axis=0))
+            bbox_info_list = utils.get_bbox_info_list_from_predict_single_image(predict_result=predict[0], labels=labels)
+            nms = utils.do_nms(bbox_info_list=bbox_info_list, iou_th=treshold)
+            out = utils.draw_rectangle(img, nms)
+            out = cv2.cvtColor(out, cv2.COLOR_RGB2BGR)
+            save_file_name = f'result_{file_name}'
+            save_path = os.path.join(save_dir, save_file_name)
+
+            cv2.imwrite(save_path, out)
+
 
 
 
 if __name__=='__main__':
     train_img_dir = '.\\datasets\\dog_cat_duck\\train'
     valid_img_dir = '.\\datasets\\dog_cat_duck\\valid'
+  
+    mode = 'test'
 
     model = YOLOV1(num_classes=3)
-    model.train(train_img_dir, valid_img_dir, 10,10, 'dog_cat_duck_2')
+
+    if mode == 'train':
+        model.train(train_img_dir, valid_img_dir, 10,10, 'dog_cat_duck_2')
+    elif mode == 'test':
+        weight = '.\\weights\\dog_cat_duck_2.h5'
+        test_img_dir = '.\\datasets\\dog_cat_duck\\test' 
+        save_dir = '.\\result\\'
+        labels = ['dog', 'cat', 'duck']
+        model.test(weight, test_img_dir, save_dir, labels)
+
