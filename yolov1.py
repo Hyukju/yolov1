@@ -164,6 +164,7 @@ class YOLOV1():
 
 
     def test(self, weight_file, test_img_dir, save_dir, labels=None, treshold=0.5):
+        # resize image 
         test_images, _, img_flie_list = load_dataset(test_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
         model = self.build_model()
         model.load_weights(weight_file)
@@ -174,10 +175,13 @@ class YOLOV1():
         for test_image, file_path in zip(test_images, img_flie_list):
             _, file_name = os.path.split(file_path)
 
-            img = test_image.copy()
-            predict = model.predict(np.expand_dims(img, axis=0))
+            # resized image
+            predict = model.predict(np.expand_dims(test_image, axis=0))
             bbox_info_list = utils.get_bbox_info_list_from_predict_single_image(predict_result=predict[0], labels=labels)
             nms = utils.do_nms(bbox_info_list=bbox_info_list, iou_th=treshold)
+
+            # original szie image
+            img = cv2.imread(file_path)
             out = utils.draw_rectangle(img, nms)
             out = cv2.cvtColor(out, cv2.COLOR_RGB2BGR)
             save_file_name = f'result_{file_name}'
@@ -200,7 +204,7 @@ if __name__=='__main__':
         model.train(train_img_dir, valid_img_dir, 10,10, 'dog_cat_duck_2')
     elif mode == 'test':
         weight = '.\\weights\\dog_cat_duck_2.h5'
-        test_img_dir = '.\\datasets\\dog_cat_duck\\test' 
+        test_img_dir = '.\\datasets\\dog_cat_duck\\test_1024' 
         save_dir = '.\\result\\'
         labels = ['dog', 'cat', 'duck']
         model.test(weight, test_img_dir, save_dir, labels)
