@@ -163,7 +163,7 @@ class YOLOV1():
             hist_df.to_csv(f)
 
 
-    def test(self, weight_file, test_img_dir, save_dir, labels=None, treshold=0.5):
+    def test(self, weight_file, test_img_dir, save_dir, labels=None, nms_iou_th=0.5, benchmark_iou_th=0.5):
         # resize image 
         test_images, _, img_flie_list = load_dataset(test_img_dir, (self.width, self.height), yolo_feature_size=self.S, num_classes=self.C)
         model = self.build_model()
@@ -171,14 +171,16 @@ class YOLOV1():
 
         os.makedirs(save_dir, exist_ok=True)
 
-        # nms 
+        # 
+        total_TP, total_FP, total_TN, total_FN = 0, 0, 0, 0 
+
         for test_image, file_path in zip(test_images, img_flie_list):
             _, file_name = os.path.split(file_path)
 
             # resized image
             predict = model.predict(np.expand_dims(test_image, axis=0))
             bbox_info_list = utils.get_bbox_info_list_from_predict_single_image(predict_result=predict[0], labels=labels)
-            nms = utils.do_nms(bbox_info_list=bbox_info_list, iou_th=treshold)
+            nms = utils.do_nms(bbox_info_list=bbox_info_list, iou_th=nms_iou_th)
 
             # original szie image
             img = cv2.imread(file_path)
@@ -190,22 +192,50 @@ class YOLOV1():
             cv2.imwrite(save_path, out)
 
 
+            # benchmark
+            label_file = file_name[:-4] + '.txt'
+            label_file_path = os.path.join(test_img_dir, label_file)
+            
+            # read true bbox info list from label file
+            true_bbox_info_list = utils.get_bbox_info_list_from_label_file(label_file_path)
+            TP, FP, TN, FN  = utils.benchmark(true_bbox_info_list=true_bbox_info_list, pred_bbox_info_list=nms, labels=labels, iou_th=benchmark_iou_th)
 
+            total_TP += TP
+            total_FP += FP
+            total_TN += TN
+            total_FN += FN
+
+            print(f'{file_path}: TP = {TP}, FP = {FP}, TN = {TN}, FN = {FN}')
+
+        precison = total_TP / (total_TP + total_FP)
+        recall =  total_TP / (total_TP + total_FN)
+        accuracy = (total_TP + total_TN) / (total_TP + total_FP + total_TN + total_FN)
+
+        print('precision: ', precison)
+        print('recall: ', recall)
+        print('accuracy: ', accuracy)
 
 if __name__=='__main__':
-    train_img_dir = '.\\datasets\\dog_cat_duck\\train'
-    valid_img_dir = '.\\datasets\\dog_cat_duck\\valid'
+    
   
     mode = 'test'
 
     model = YOLOV1(num_classes=3)
 
     if mode == 'train':
+        train_img_dir = '.\\datasets\\dog_cat_duck\\train'
+        valid_img_dir = '.\\datasets\\dog_cat_duck\\valid'  
         model.train(train_img_dir, valid_img_dir, 10,10, 'dog_cat_duck_2')
     elif mode == 'test':
         weight = '.\\weights\\dog_cat_duck_2.h5'
-        test_img_dir = '.\\datasets\\dog_cat_duck\\test_1024' 
+        test_img_dir = '.\\datasets\\dog_cat_duck\\test' 
         save_dir = '.\\result\\'
         labels = ['dog', 'cat', 'duck']
         model.test(weight, test_img_dir, save_dir, labels)
+
+    elif mode == 'benchmark':
+        weight = '.\\weights\\dog_cat_duck_2.h5'
+        test_img_dir = '.\\datasets\\dog_cat_duck\\test' 
+        model.benchmark(weight, test_img_dir)
+
 

@@ -125,3 +125,50 @@ def get_bbox_info_list_from_predict_single_image(predict_result, labels=None):
 
     return bbox_info_list
 
+def get_bbox_info_list_from_label_file(label_file):
+    with open(label_file, 'r') as f:
+        lines = f.readlines()
+        bbox_info_list = []
+
+        for line in lines:
+            info = line.split()
+            bbox_info = dict()
+            if len(info) == 5:
+                bbox_info['class'] = int(info[0]) 
+                bbox_info['x'] = float(info[1])
+                bbox_info['y'] = float(info[2])
+                bbox_info['width'] = float(info[3]) 
+                bbox_info['height'] = float(info[4]) 
+                bbox_info_list.append(bbox_info)
+    return bbox_info_list
+
+def benchmark(true_bbox_info_list, pred_bbox_info_list, labels=None, iou_th=0.5):
+    TP, FP, TN, FN = 0, 0, 0, 0
+
+    for pred_bbox_info in pred_bbox_info_list:
+        pred_class = pred_bbox_info['class']
+     
+
+        tp_id_list = [] 
+        flag_tp = False 
+        for i, true_bbox_info in enumerate(true_bbox_info_list):
+            if i not in tp_id_list:
+                true_class = true_bbox_info['class']
+                if labels is not None:
+                    true_class = labels[true_class]
+                iou = do_iou(pred_bbox_info, true_bbox_info)
+
+                if iou >= iou_th and pred_class == true_class:
+                    TP += 1
+                    tp_id_list.append(i)
+                    flag_tp = True
+                    break
+        if flag_tp == False:
+            FP += 1
+    
+    FN = len(true_bbox_info_list) - TP
+
+    return TP, FP, TN, FN 
+              
+
+
