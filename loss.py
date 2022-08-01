@@ -85,11 +85,11 @@ def yolo_loss(y_true, y_pred):
                                     obj * best_iou1_region * K.square(K.sqrt(gt_h) - K.sqrt(pred_h1)) +
                                     obj * best_iou2_region * K.square(K.sqrt(gt_h) - K.sqrt(pred_h2)))
     
-    loss_conf_obj = K.sum( obj * best_iou1_region * K.square(1.0 - pred_conf1) + 
-                           obj * best_iou2_region * K.square(1.0 - pred_conf2)) 
+    loss_conf_obj = K.sum( obj * best_iou1_region * K.square(gt_conf - pred_conf1) + 
+                           obj * best_iou2_region * K.square(gt_conf - pred_conf2)) 
 
-    loss_conf_noobj = lambda_noobj * K.sum( (1 - obj * best_iou1_region) * K.square(0. - pred_conf1) + 
-                                            (1 - obj * best_iou2_region) * K.square(0. - pred_conf2)) 
+    loss_conf_noobj = lambda_noobj * K.sum( (1 - obj) * best_iou1_region * K.square(gt_conf - pred_conf1) + 
+                                            (1 - obj) * best_iou2_region * K.square(gt_conf - pred_conf2)) 
 
     loss_clss_prob = K.sum ( tf.expand_dims(obj, axis=-1) * K.square(gt_class_prob - pred_class_prob))
     
